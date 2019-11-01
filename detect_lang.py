@@ -22,6 +22,7 @@ max_sentence_length = 200
 embedding_vector_length = 300
 dropout = 0.5
 
+
 def process_sentence(sentence):
     # Loai bo cac ki tu dac biet, chuyen cau ve lower case
     return re.sub(r'[\\\\/:*«`\'?¿";!<>,.|]', '', sentence.lower().strip())
@@ -48,11 +49,13 @@ def convert_to_int(data, data_int):
 
     return all_items
 
+
 def load_data():
     # Ham load du lieu tu file data.csv
     data = pd.read_csv("data.csv", names=["sentence", "language"], header=None)
     print(data.describe())
     return data
+
 
 def get_model():
     # Ham tao model
@@ -66,7 +69,8 @@ def get_model():
 
     return model
 
-def predict_sentence(model, sentence,  vocab_to_int, int_to_languages):
+
+def predict_sentence(model, sentence, vocab_to_int, int_to_languages):
     # Chuyen text thanh vector int va dua vao model de predict language
 
     # Clean the sentence
@@ -81,28 +85,26 @@ def predict_sentence(model, sentence,  vocab_to_int, int_to_languages):
 
     # Get the highest prediction
     lang_index = numpy.argmax(prediction)
-    print(prediction[0][lang_index])
+    #print(prediction[0][lang_index])
 
     # Neu probality <0.3 thi hien thi ngon ngu Khong xac dinh/Unknown
-    if prediction[0][lang_index]<0.3:
+    if prediction[0][lang_index] < 0.3:
         return "Unknown"
     else:
         return int_to_languages[lang_index]
 
+
 mode = "test"
-if len(sys.argv)>1:
+if len(sys.argv) > 1:
     mode = sys.argv[1]
 
-if mode=="test":
-    predSentence = sys.argv[2]
-
 # Neu mode la train thi thuc hien train
-if mode=="train":
+if mode == "train":
 
     data = load_data()
 
     # Xao tron data
-    sss = StratifiedShuffleSplit(test_size=0.2, random_state=0)
+    sss = StratifiedShuffleSplit(test_size=0.2, random_state=1)
 
     # Lam sach cau
     X = data["sentence"].apply(process_sentence)
@@ -117,7 +119,6 @@ if mode=="train":
     for train_index, test_index in sss.split(X, y):
         X_train, X_test = X[train_index], X[test_index]
         y_train, y_test = y[train_index], y[test_index]
-
     # Lay danh sach cac ngon ngu
     languages = set(y)
 
@@ -130,7 +131,7 @@ if mode=="train":
 
     # Luu lai cac du lieu
     with open("data.pkl", "wb") as fp:
-        pickle.dump([vocab_to_int, int_to_vocab, languages_to_int, int_to_languages, languages] , fp)
+        pickle.dump([vocab_to_int, int_to_vocab, languages_to_int, int_to_languages, languages], fp)
 
     # Encode du lieu X
     X_test_encoded = convert_to_int(X_test, vocab_to_int)
@@ -157,11 +158,8 @@ if mode=="train":
     else:
         print('Default GPU Device: {}'.format(tf.test.gpu_device_name()))
 
-
-
-
-    #with tf.device('/gpu:0'):
-        # Pad cac dau cho du do dai
+    # with tf.device('/gpu:0'):
+    # Pad cac dau cho du do dai
     X_train_pad = sequence.pad_sequences(X_train_encoded, maxlen=max_sentence_length)
     X_test_pad = sequence.pad_sequences(X_test_encoded, maxlen=max_sentence_length)
 
@@ -170,11 +168,11 @@ if mode=="train":
     print(model.summary())
 
     # Train the model
-    model.fit(X_train_pad, y_train_encoded, epochs=5, batch_size=256)
+    model.fit(X_train_pad, y_train_encoded, epochs=10, batch_size=128)
 
     # Danh gia model
     scores = model.evaluate(X_test_pad, y_test_encoded, verbose=0)
-    print("Accuracy: %.2f%%" % (scores[1]*100))
+    print("Accuracy: %.2f%%" % (scores[1] * 100))
 
     # Luu Model vao file
     model.save("model.h5")
@@ -191,7 +189,29 @@ else:
     model.load_weights("model.h5")
     print("Model loaded!")
 
-
     # Predict
-    print("Check language for sentence= ", predSentence)
-    print("Language=", predict_sentence(model, predSentence, vocab_to_int, int_to_languages))
+    if mode == "test":
+        count = 0
+        f = open("test.csv","r")
+        countE = 0
+        countV = 0
+        countI = 0
+        s = []
+        for i in f:
+            count += 1
+            predSentence = i
+            if predict_sentence(model,predSentence, vocab_to_int, int_to_languages) == "English":
+                countE += 1
+                s+= 0,
+            if predict_sentence(model,predSentence, vocab_to_int, int_to_languages) == "Italia":
+                countV += 1
+                s+= 1,
+            if predict_sentence(model,predSentence, vocab_to_int, int_to_languages) == "Vietnamese":
+                countI += 1
+                s+= 2,
+
+            #print("Check language for sentence= ", predSentence)
+            print("Language=", predict_sentence(model, predSentence, vocab_to_int, int_to_languages))
+            print(countE,countI,countV)
+            print(count)
+            print(s)
